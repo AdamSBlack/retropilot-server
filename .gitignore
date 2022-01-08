@@ -17,10 +17,9 @@ config*.js
 !config.sample.js
 *.sqlite
 !database.empty.sqlite
-
-# Log files
-*.log
+docker-compose*.yml
+!docker-compose.*example.yml
 
 # Miscellaneous
 .DS_Store
-
+*.log
