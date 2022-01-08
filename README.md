@@ -1,46 +1,111 @@
 # retropilot-server
-Replacement for comma.ai backend and useradmin dashboard. Bundled with a modified version of comma's cabana to allow viewing & analyzing drives.
 
-If you don't want to host your own instance, check out https://api.retropilot.org/useradmin for a hosted version of the backend, useradmin and cabana.
+Replacement for comma.ai backend and useradmin dashboard. Bundled with a modified version of comma's cabana to allow
+viewing & analyzing drives.
 
-### [Server] Summary
+If you don't want to host your own instance, check out https://api.retropilot.org/useradmin for a hosted version of the
+backend, useradmin and cabana.
+
+## Summary
 
 The server consists of 2 node scripts.
 
-`server.js` is using expressjs and runs the backend (file upload / communication with openpilot) and the useradmin dashboard to manage / view / download drives & logs.
-`worker.js` is a background worker that is processing drives (analyzing video files & logs) to prepare drives for playback in cabana and to gather statistics. It automatically terminates itself after 60 minutes to make sure the video/log libraries do not cause memory leaks.
+- `server.js` is using expressjs and runs the backend (file upload / communication with openpilot) and the useradmin
+dashboard to manage / view / download drives & logs.
+
+- `worker.js` is a background worker that is processing drives (analyzing video files & logs) to prepare drives for
+playback in cabana and to gather statistics. It automatically terminates itself after 60 minutes to make sure the
+video/log libraries do not cause memory leaks.
 
 Both scripts can be started with a cronjob each minute, they use locking to make sure they run exclusively.
 
-**Attention:** Minimum required node version is **node 10**.
+**Attention:** Minimum required node version is **Node 10**.
 
-### [Server] Installation
+## Installation
 
-```
+There are two supported methods of installation. The first is manual installation: the dependencies and running the
+scripts on your machine. The second is to build and run the server as a Docker image - we can use Docker Compose to run
+the server and worker scripts and mount files (configuration, drives storage) from volumes.
+
+### Manual Method
+
+To begin, install the NPM dependencies and copy the config template.
+
+```sh
 npm install
 cp config.sample.js config.js
+```
+
+Edit `config.js` as appropriate. Next, you will need to prepare the database. Make a copy of the empty database.
+
+```sh
 cp database.empty.sqlite database.sqlite
-> EDIT config.js
 ```
 
+To start the services, run the following commands.
 
-### [Server] Running
-
-```
+```sh
 node -r esm server.js
-```
-```
 node -r esm worker.js
 ```
 
+The worker will stop after 1 hour to prevent memory leaks. You should use cron or a similar service to restart it
+regularly. Both services use a lockfile to ensure there are not two instances running at once. 
 
-### [Server] CABANA Support
-A compiled version of a custom cabana fork (https://github.com/florianbrede-ayet/retropilot-cabana) is directly bundled in the `cabana/` subdirectory and will be served by the express app. After starting `server.js`, cabana is ready to use.
+### Docker Method
+
+You will need to [install Docker](https://docs.docker.com/get-docker/) first. Compose is bundled with Docker Desktop for
+Windows and Mac, but Linux users will have to [install it separately](https://docs.docker.com/compose/install/).
+
+To begin, copy the templates.
+
+```sh
+cp docker-compose.example.yml docker-compose.yml
+cp config.sample.js config.js
+```
+
+As you can see in the compose file, the current directory is mounted to the
+container's working directory so that they can access `database.sqlite`, `config.js` and store route data (`storagePath`
+in the config).
+
+The server and worker scripts run in separate containers, but both 
+
+Edit the `docker-compose.yml` and `config.js` files as appropriate, and then you can start the services.
+
+```sh
+# Builds the images, (re)creates and starts the containers for the services.
+# The --build flag tells Docker to build images before starting containers.
+# The -d flag runs the containers in the background.
+docker-compose up --build -d
+```
+
+To view the logs you can run the following command. Press CTRL-C to exit.
+
+```sh
+# Displays log output from services. The -f flag will follow new log output.
+docker-compose logs -f
+```
+
+To start/stop the services you can run the following.
+
+```sh
+# Starts existing containers for a service.
+docker-compose start [SERVICE...]
+# Stops running containers without removing them.
+docker-compose stop [SERVICE...]
+# Stops containers and removes containers and networks created by up.
+docker-compose down
+```
+
+
+## [Server] CABANA Support
+A compiled version of a custom cabana fork (https://github.com/florianbrede-ayet/retropilot-cabana) is directly bundled
+in the `cabana/` subdirectory and will be served by the express app. After starting `server.js`, cabana is ready to use.
 
 -----
 
 
-### [Device] Preparation / Enable Custom Server
+## [Device] Preparation / Enable Custom Server
 
 On the device or in your fork's code, replace all API endpoints with your own server endpoint. 
 This could be executed directly on the device in the shell to use `https://api.retropilot.org` as backend:
@@ -48,18 +113,20 @@ This could be executed directly on the device in the shell to use `https://api.r
 find /data/openpilot -type f -exec sed -i 's/https:\/\/api.commadotai.com/https:\/\/api.retropilot.org/g' {} +
 ```
 
-### [Device] Swapping Servers (Back)
+## [Device] Swapping Servers (Back)
 To switch a device between different servers, you have to remove the old `DongleId` and reboot:
 ```
 rm /data/params/d/DongleID
 reboot
 ```
 
-There is no need to backup the `DongleId`, as the new server will identify your device based on its imei, serial and public key.
+There is no need to backup the `DongleId`, as the new server will identify your device based on its imei, serial and
+public key.
 
-### [Device] Raw Drives Not Uploading (fcamera & rlog)
-1. Raw data is only uploaded if the device is sufficiently charged, not connected to an active panda (offroad) and there are no immediate files (boot, crash, qcamera, qlog) remaining.<br>
-2. Your branch might have raw uploads disabled, check *Device Settings > Upload Raw Logs*.
+## [Device] Raw Drives Not Uploading (fcamera & rlog)
+1. Raw data is only uploaded if the device is sufficiently charged, not connected to an active panda (offroad) and there
+are no immediate files (boot, crash, qcamera, qlog) remaining.<br>
+3. Your branch might have raw uploads disabled, check *Device Settings > Upload Raw Logs*.
 
 
 If that doesn't help or the option is not available, try:
@@ -73,14 +140,16 @@ reboot
 -----
 
 
-### Current Limitations
+## Current Limitations
 OpenPilot before 0.8.3 will not display any statistics or pairing status in the dashboard.
-The reason is that pre 0.8.3, the `offroad.apk` with react and comma-api would require recompilation to accept the new endpoints.
+The reason is that pre 0.8.3, the `offroad.apk` with react and comma-api would require recompilation to accept the new
+endpoints.
 
-The athena websockets interface is not implemented yet, so the comma app and athena specific remote control commands (including "upload on demand") are not functional as of now.
+The athena websockets interface is not implemented yet, so the comma app and athena specific remote control commands
+(including "upload on demand") are not functional as of now.
 
 
-### Screenshots
+## Screenshots
 
 ![image](https://user-images.githubusercontent.com/48515354/118385101-6bd64780-b60c-11eb-899d-bcb0b32e2939.png)
 

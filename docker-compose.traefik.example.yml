@@ -48,7 +48,6 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       # Enable dashboard
       - "--api.dashboard=true"
-      - "--log.level=DEBUG"
     restart: unless-stopped
     ports:
       - "80:80"
