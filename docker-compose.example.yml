@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  server:
+    # Build image from Dockerfile
+    build: .
+    restart: unless-stopped
+    volumes:
+      # Mount the current directory to the container
+      - .:/app
+    ports:
+      # HTTP server
+      - "3000:3000"
+      # HTTPS server
+      - "4430:4430"
+      # Athena WebSocket
+      - "4040:4040"
+  worker:
+    # Use the same image as the server
+    build: .
+    # But run the worker.js script instead
+    command: /usr/local/bin/node worker.js
+    restart: unless-stopped
+    volumes:
+      - .:/app

@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  server:
+    # Build image from Dockerfile
+    build: .
+    restart: unless-stopped
+    volumes:
+      # Mount the current directory to the container
+      - .:/app
+    labels:
+      - "traefik.enable=true"
+      # Expose website at https://localhost
+      - "traefik.http.routers.server-http.rule=Host(`localhost`)"
+      - "traefik.http.routers.server-http.entrypoints=websecure"
+      - "traefik.http.routers.server-http.service=server-http"
+      - "traefik.http.routers.server-http.tls=true"
+      # Forwards requests to container port 3000
+      - "traefik.http.services.server-http.loadbalancer.server.port=3000"
+
+      # Expose athena at https://localhost/ws
+      - "traefik.http.routers.server-athena.rule=Host(`localhost`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.server-athena.entrypoints=websecure"
+      - "traefik.http.routers.server-athena.service=server-athena"
+      - "traefik.http.routers.server-athena.tls=true"
+      # Forwards requests to container port 4040
+      - "traefik.http.services.server-athena.loadbalancer.server.port=4040"
+  worker:
+    # Use the same image as the server
+    build: .
+    # But run the worker.js script instead
+    command: /usr/local/bin/node worker.js
+    restart: unless-stopped
+    volumes:
+      - .:/app
+  reverse-proxy:
+    image: traefik:2.5
+    command:
+      # Docker configuration
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      # Configure entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.traefik.address=:8080"
+      # Global HTTP to HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # Enable dashboard
+      - "--api.dashboard=true"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=true"
+      # Expose traefik dashboard on localhost:8080
+      - "traefik.http.routers.traefik.rule=Host(`localhost`)"
+      - "traefik.http.routers.traefik.entrypoints=traefik"
+      - "traefik.http.routers.traefik.service=api@internal"

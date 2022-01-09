@@ -1,13 +1,25 @@
-node_modules/
-realdata/
-worker.log
-server.log
-database.sqlite
-config.js
-.vscode
+# Editors
 .idea
+.vscode*
+*.swp
+*.swo
+
+# NPM
+node_modules
+
+# Database
+realdata/
 database.sqlite
-config.js
+
+# Sensitive data
 test/.devKeys
-config_prod.js
-database - copy.sqlite
+config*.js
+!config.sample.js
+*.sqlite
+!database.empty.sqlite
+docker-compose*.yml
+!docker-compose.*example.yml
+
+# Miscellaneous
+.DS_Store
+*.log
