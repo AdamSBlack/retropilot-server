@@ -360,8 +360,8 @@ function processSegmentsRecursive() {
   if (segment.process_attempts > 5) {
     logger.error(`FAILING TO PROCESS SEGMENT,${segment.dongle_id} ${segment.drive_identifier} ${segment.segment_id} JSON: ${JSON.stringify(segment)} SKIPPING `);
     segmentProcessPosition++;
-  }
-  else {
+    processSegmentsRecursive();
+  } else {
 
     var p1 = processSegmentRLog(fileStatus['rlog.bz2']);
     var p2 = processSegmentVideo(fileStatus['qcamera.ts']);
