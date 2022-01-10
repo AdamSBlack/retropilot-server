@@ -78,6 +78,7 @@ const web = async () => {
     logger.log('Athena disabled');
   }
 
+  // FIXME: cors is setup in two places
   app.use(cors({ origin: 'http://localhost:3000' }));
   app.use(cookieParser());
   app.use('/favicon.ico', express.static('static/favicon.ico'));
@@ -107,6 +108,8 @@ const web = async () => {
     res.status(404);
     res.send('Not Implemented');
   }));
+
+  return app;
 };
 
 lockfile.lock('retropilot_server', { realpath: false, stale: 30000, update: 2000 })

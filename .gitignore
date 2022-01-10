@@ -22,4 +22,4 @@ docker-compose*.yml
 
 # Miscellaneous
 .DS_Store
-*.log
+*.log*
