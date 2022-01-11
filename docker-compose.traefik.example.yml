@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  server:
+  api:
     # Build image from Dockerfile
     build: .
     restart: unless-stopped
@@ -10,21 +10,20 @@ services:
       - .:/app
     labels:
       - "traefik.enable=true"
-      # Expose website at https://localhost
-      - "traefik.http.routers.server-http.rule=Host(`localhost`)"
-      - "traefik.http.routers.server-http.entrypoints=websecure"
-      - "traefik.http.routers.server-http.service=server-http"
-      - "traefik.http.routers.server-http.tls=true"
-      # Forwards requests to container port 3000
-      - "traefik.http.services.server-http.loadbalancer.server.port=3000"
-
-      # Expose athena at https://localhost/ws
-      - "traefik.http.routers.server-athena.rule=Host(`localhost`) && PathPrefix(`/ws`)"
-      - "traefik.http.routers.server-athena.entrypoints=websecure"
-      - "traefik.http.routers.server-athena.service=server-athena"
-      - "traefik.http.routers.server-athena.tls=true"
-      # Forwards requests to container port 4040
-      - "traefik.http.services.server-athena.loadbalancer.server.port=4040"
+      # API service forwards requests to container port 3000
+      - "traefik.http.services.api.loadbalancer.server.port=3000"
+      # Expose api at https://api.retropilot.local
+      - "traefik.http.routers.api.rule=Host(`api.retropilot.local`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.service=api@docker"
+      - "traefik.http.routers.api.tls=true"
+      # Athena service forwards requests to container port 4040
+      - "traefik.http.services.athena.loadbalancer.server.port=4040"
+      # Expose athena at https://athena.retropilot.local
+      - "traefik.http.routers.athena.rule=Host(`athena.retropilot.local`)"
+      - "traefik.http.routers.athena.entrypoints=websecure"
+      - "traefik.http.routers.athena.service=athena@docker"
+      - "traefik.http.routers.athena.tls=true"
   worker:
     # Use the same image as the server
     build: .
@@ -33,6 +32,25 @@ services:
     restart: unless-stopped
     volumes:
       - .:/app
+  client:
+    # Use retropilot-client image (assuming it is in the parent directory)
+    build:
+      context: ../retropilot-client
+      dockerfile: ../retropilot-client/Dockerfile
+      args:
+        # Override .env.production in retropilot-client
+        PUBLIC_URL: https://connect.retropilot.local
+        API_URL: https://api.retropilot.local
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # Client service forwards requests to container port 80
+      - "traefik.http.services.client.loadbalancer.server.port=80"
+      # Expose client at https://connect.retropilot.local
+      - "traefik.http.routers.client.rule=Host(`connect.retropilot.local`)"
+      - "traefik.http.routers.client.entrypoints=websecure"
+      - "traefik.http.routers.client.service=client@docker"
+      - "traefik.http.routers.client.tls=true"
   reverse-proxy:
     image: traefik:2.5
     command:
@@ -42,22 +60,27 @@ services:
       # Configure entrypoints
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.traefik.address=:8080"
       # Global HTTP to HTTPS
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       # Enable dashboard
       - "--api.dashboard=true"
+      - "--log.level=INFO"
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - "traefik.enable=true"
-      # Expose traefik dashboard on localhost:8080
-      - "traefik.http.routers.traefik.rule=Host(`localhost`)"
-      - "traefik.http.routers.traefik.entrypoints=traefik"
-      - "traefik.http.routers.traefik.service=api@internal"
+      # Expose traefik dashboard at https://traefik.retropilot.local
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.retropilot.local`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      # Secure the dashboard with BasicAuth middleware
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+      # BasicAuth: username=admin, password=password
+      # Generate new password: sudo apt install -y apache2-utils; echo $(htpasswd -nB user) | sed -e s/\\$/\\$\\$/g
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$2y$$05$$iT4z7pjcdNRYU9Y89VlUUe.13TdQ9H7rBtIO6PJruuK.RAW8lvmxW"
