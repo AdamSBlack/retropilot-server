@@ -7,20 +7,20 @@ let logger;
 
 const transporter = nodemailer.createTransport(
   {
-    host: config.smtpHost,
-    port: config.smtpPort,
+    host: config.smtp.host,
+    port: config.smtp.port,
     auth: {
-      user: config.smtpUser,
-      pass: config.smtpPassword,
+      user: config.smtp.user,
+      password: config.smtp.password,
     },
     logger: true,
     debug: false,
   },
-  { from: config.smtpFrom },
+  { from: config.smtp.from },
 );
 
 async function sendEmailVerification(token, email) {
-  if (!config.canSendMail) {
+  if (!config.smtp.enabled) {
     return logger.warn(`Mailing disabled. ${email} - ${token}`);
   }
 
@@ -30,7 +30,7 @@ async function sendEmailVerification(token, email) {
 
   try {
     message = {
-      from: config.smtpFrom,
+      from: config.smtp.from,
       to: email.trim(),
       subject: 'RetroPilot Registration Token',
       text: `Your Email Registration Token Is: "${token}"`,
