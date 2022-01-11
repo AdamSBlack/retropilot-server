@@ -1,9 +1,6 @@
 /* eslint-disable global-require */
-const fs = require('fs');
 const log4js = require('log4js');
 const lockfile = require('proper-lockfile');
-const http = require('http');
-const https = require('https');
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -24,7 +21,7 @@ const athena = require('./websocket/athena');
 let routers = require('./routes');
 const orm = require('./models/index.model');
 let controllers = require('./controllers');
-let models = require('./models/index');
+let models = require('./models');
 const router = require('./routes/api/realtime');
 /* eslint-enable no-unused-vars */
 
@@ -40,7 +37,7 @@ function runAsyncWrapper(callback) {
 const web = async () => {
   const app = express();
 
-  models = await models(logger).models;
+  models = await models(logger);
 
   app.use((req, res, next) => {
     // TODO: can we use config.baseUrl here?
@@ -117,17 +114,8 @@ lockfile.lock('retropilot_server', { realpath: false, stale: 30000, update: 2000
     console.log('STARTING SERVER...');
     const app = await web();
 
-    const key = fs.readFileSync(config.sslKey, 'utf8');
-    const cert = fs.readFileSync(config.sslCrt, 'utf8');
-
-    const httpServer = http.createServer(app);
-    const httpsServer = https.createServer({ key, cert }, app);
-
-    httpServer.listen(config.httpPort, config.httpInterface, () => {
-      logger.info(`Retropilot Server listening at http://${config.httpInterface}:${config.httpPort}`);
-    });
-    httpsServer.listen(config.httpsPort, config.httpsInterface, () => {
-      logger.info(`Retropilot Server listening at https://${config.httpsInterface}:${config.httpsPort}`);
+    app.listen(config.httpPort, () => {
+      logger.info(`Retropilot Server listening on port ${config.httpPort}`);
     });
   }).catch((e) => {
     console.error(e);

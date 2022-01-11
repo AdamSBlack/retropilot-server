@@ -1,9 +1,7 @@
 const WebSocket = require('ws');
 const cookie = require('cookie');
 const jsonwebtoken = require('jsonwebtoken');
-const httpsServer = require('https');
 const httpServer = require('http');
-const { readFileSync } = require('fs');
 const log4js = require('log4js');
 const models = require('../../models/index.model');
 const config = require('../../config');
@@ -18,18 +16,9 @@ let helpers;
 let wss;
 
 function __server() {
-  let server;
+  const server = httpServer.createServer();
 
-  if (config.athena.secure) {
-    server = httpsServer.createServer({
-      cert: readFileSync(config.sslCrt),
-      key: readFileSync(config.sslKey),
-    });
-  } else {
-    server = httpServer.createServer();
-  }
-
-  wss = new WebSocket.WebSocketServer({ server }, { path: '/ws/v2/', handshakeTimeout: 500 });
+  wss = new WebSocket.WebSocketServer({ server }, { path: '/v2/', handshakeTimeout: 500 });
 
   const interval = setInterval(() => {
     wss.clients.forEach((ws) => {

@@ -30,6 +30,7 @@ module.exports = async (logger) => {
       mode: sqlite3.OPEN_READWRITE,
     });
   } catch (exception) {
+    console.error('Failed to open database', exception);
     logger.error(exception);
     process.exit();
   }
@@ -40,12 +41,10 @@ module.exports = async (logger) => {
   await validateDatabase(db, logger);
 
   return {
-    models: {
-      drivesModel: require('./drives')(db),
-      users: require('./users')(db),
+    drivesModel: require('./drives')(db),
+    users: require('./users')(db),
 
-      // TODO remove access to DB queries from non models
-      __db: db, // to be removed when db queries are removed from outside models.
-    },
+    // TODO remove access to DB queries from non models
+    __db: db, // to be removed when db queries are removed from outside models.
   };
 };
