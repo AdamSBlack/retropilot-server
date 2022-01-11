@@ -11,8 +11,6 @@ services:
     ports:
       # HTTP server
       - "3000:3000"
-      # HTTPS server
-      - "4430:4430"
       # Athena WebSocket
       - "4040:4040"
   worker:
@@ -23,3 +21,17 @@ services:
     restart: unless-stopped
     volumes:
       - .:/app
+#  # Optionally, start the retropilot-client (assuming it is in the parent directory)
+#  client:
+#    # Use retropilot-client image
+#    build:
+#      context: ../retropilot-client
+#      dockerfile: ../retropilot-client/Dockerfile
+#      args:
+#        # Override .env.production in retropilot-client
+#        PUBLIC_URL: http://localhost:8080
+#        API_URL: http://localhost:3000
+#    restart: unless-stopped
+#    ports:
+#      # Bind container port 80 to host port 8080
+#      - "8080:80"
