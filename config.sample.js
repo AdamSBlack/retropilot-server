@@ -1,5 +1,6 @@
 const config = {
   applicationSalt: 'RANDOM_SEED',
+  development: false,
 
   databaseFile: 'database.sqlite',
 

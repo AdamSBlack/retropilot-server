@@ -17,7 +17,7 @@ import ffprobe from 'ffprobe';
 import ffprobeStatic from 'ffprobe-static';
 */
 
-const config  = require( './config')
+const config  = require( '../config')
 
 const fs  = require( 'fs');
 const path  = require( 'path');
@@ -45,165 +45,6 @@ log4js.configure({
 
 var logger = log4js.getLogger('default');
 
-function initializeStorage() {
-  var verifiedPath = mkDirByPathSync(config.storagePath, { isRelativeToScript: (config.storagePath.indexOf('/') !== 0) });
-  if (verifiedPath != null) {
-    logger.info(`Verified storage path ${verifiedPath}`);
-  }
-  else {
-    logger.error(`Unable to verify storage path '${config.storagePath}', check filesystem / permissions`);
-    process.exit();
-  }
-}
-
-function mkDirByPathSync(targetDir, { isRelativeToScript = false } = {}) {
-  const { sep } = path;
-  const initDir = path.isAbsolute(targetDir) ? sep : '';
-  const baseDir = isRelativeToScript ? __dirname : '.';
-
-  return targetDir.split(sep)
-    .reduce((parentDir, childDir) => {
-      const curDir = path.resolve(baseDir, parentDir, childDir);
-      try {
-        fs.mkdirSync(curDir);
-      } catch (err) {
-        if (err.code === 'EEXIST') { // curDir already exists!
-          return curDir;
-        }
-
-        // To avoid `EISDIR` error on Mac and `EACCES`-->`ENOENT` and `EPERM` on Windows.
-        if (err.code === 'ENOENT') { // Throw the original parentDir error on curDir `ENOENT` failure.
-          logger.error(`EACCES: permission denied, mkdir '${parentDir}'`);
-          return null;
-        }
-
-        const caughtErr = ['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) > -1;
-        if (!caughtErr || (caughtErr && curDir === path.resolve(targetDir))) {
-          logger.error('\'EACCES\', \'EPERM\', \'EISDIR\' during mkdir');
-          return null;
-        }
-      }
-
-      return curDir;
-    }, initDir);
-}
-
-function writeFileSync(path, buffer, permission) {
-  var fileDescriptor;
-  try {
-    fileDescriptor = fs.openSync(path, 'w', permission);
-  } catch (e) {
-    fs.chmodSync(path, permission);
-    fileDescriptor = fs.openSync(path, 'w', permission);
-  }
-
-  if (fileDescriptor) {
-    fs.writeSync(fileDescriptor, buffer, 0, buffer.length, 0);
-    fs.closeSync(fileDescriptor);
-    logger.info(`writeFileSync wiriting to '${path}' successful`);
-    return true;
-  }
-  logger.error(`writeFileSync writing to '${path}' failed`);
-  return false;
-}
-
-// eslint-disable-next-line
-function moveUploadedFile(buffer, directory, filename) {
-  logger.info(`moveUploadedFile called with '${filename}' -> '${directory}'`);
-
-  if (directory.indexOf('..') >= 0 || filename.indexOf('..') >= 0) {
-    logger.error('moveUploadedFile failed, .. in directory or filename');
-    return false;
-  }
-
-  if (config.storagePath.lastIndexOf('/') !== config.storagePath.length - 1) {
-    directory = `/${directory}`;
-  }
-  if (directory.lastIndexOf('/') !== directory.length - 1) directory += '/';
-
-  var finalPath = mkDirByPathSync(config.storagePath + directory, { isRelativeToScript: (config.storagePath.indexOf('/') !== 0) });
-  if (finalPath && finalPath.length > 0) {
-    if (writeFileSync(`${finalPath}/${filename}`, buffer, 0o660)) {
-      logger.info(`moveUploadedFile successfully written '${finalPath}/${filename}'`);
-      return `${finalPath}/${filename}`;
-    }
-    logger.error('moveUploadedFile failed to writeFileSync');
-    return false;
-  }
-  logger.error(`moveUploadedFile invalid final path, check permissions to create / write '${config.storagePath + directory}'`);
-  return false;
-}
-
-function deleteFolderRecursive(directoryPath) {
-  if (fs.existsSync(directoryPath)) {
-    fs.readdirSync(directoryPath)
-      .forEach((file, index) => {
-        const curPath = path.join(directoryPath, file);
-        if (fs.lstatSync(curPath)
-          .isDirectory()) {
-          deleteFolderRecursive(curPath);
-        }
-        else {
-          fs.unlinkSync(curPath);
-        }
-      });
-    fs.rmdirSync(directoryPath);
-  }
-}
-
-async function dbProtectedRun() {
-  let retries = 0;
-  while (true) {
-    try {
-        return await db.run(...arguments);
-    } catch (error) {
-      logger.error(error);
-      retries++;
-      if (retries >= 10) {
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-  logger.error(`unable to complete dbProtectedRun for ${arguments}`);
-  return null;
-}
-
-async function dbProtectedGet() {
-  let retries = 0;
-  while (true) {
-    try {
-        return await db.get(...arguments);
-    } catch (error) {
-      logger.error(error);
-      retries++;
-      if (retries >= 10) {
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-  logger.error(`unable to complete dbProtectedGet for ${arguments}`);
-  return null;
-}
-
-async function dbProtectedAll() {
-  let retries = 0;
-  while (true) {
-    try {
-        return await db.all(...arguments);
-    } catch (error) {
-      logger.error(error);
-      retries++;
-      if (retries >= 10) {
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-  logger.error(`unable to complete dbProtectedGet for ${arguments}`);
-  return null;
-}
 
 var segmentProcessQueue = [];
 var segmentProcessPosition = 0;
@@ -424,99 +265,7 @@ function processSegmentsRecursive() {
 
 }
 
-async function updateSegments() {
-  segmentProcessQueue = [];
-  segmentProcessPosition = 0;
-  affectedDrives = {};
-  affectedDriveCarParams = {};
-  affectedDriveInitData = {};
 
-  const drive_segments = await dbProtectedAll('SELECT * FROM drive_segments WHERE upload_complete = ? AND is_stalled = ? AND process_attempts < ? ORDER BY created ASC', false, false, 4);
-  if (drive_segments != null) {
-    for (var t = 0; t < drive_segments.length; t++) {
-      var segment = drive_segments[t];
-
-      var dongleIdHash = crypto.createHmac('sha256', config.applicationSalt)
-        .update(segment.dongle_id)
-        .digest('hex');
-      var driveIdentifierHash = crypto.createHmac('sha256', config.applicationSalt)
-        .update(segment.drive_identifier)
-        .digest('hex');
-
-      const directoryTree = dirTree(`${config.storagePath + segment.dongle_id}/${dongleIdHash}/${driveIdentifierHash}/${segment.drive_identifier}/${segment.segment_id}`);
-      if (directoryTree == null || directoryTree.children == undefined) continue; // happens if upload in progress (db entity written but directory not yet created)
-
-      var qcamera = false;
-      var fcamera = false;
-      var dcamera = false;
-      var qlog = false;
-      var rlog = false;
-      var fileStatus = {
-        'fcamera.hevc': false,
-        'dcamera.hevc': false,
-        'qcamera.ts': false,
-        'qlog.bz2': false,
-        'rlog.bz2': false
-      };
-
-      for (var i in directoryTree.children) {
-        fileStatus[directoryTree.children[i].name] = directoryTree.children[i].path;
-      }
-
-      var uploadComplete = false;
-      if (fileStatus['qcamera.ts'] !== false && fileStatus['fcamera.hevc'] !== false && fileStatus['rlog.bz2'] !== false && fileStatus['qlog.bz2'] !== false) // upload complete
-      {
-        uploadComplete = true;
-      }
-
-      if (fileStatus['qcamera.ts'] !== false && fileStatus['rlog.bz2'] !== false && !segment.is_processed) { // can process
-        segmentProcessQueue.push({
-          segment,
-          fileStatus,
-          uploadComplete,
-          driveIdentifier: `${segment.dongle_id}|${segment.drive_identifier}`
-        });
-      }
-      else if (uploadComplete) {
-        logger.info(`updateSegments uploadComplete for ${segment.dongle_id} ${segment.drive_identifier} ${segment.segment_id}`);
-
-        const driveSegmentResult = await dbProtectedRun(
-          'UPDATE drive_segments SET upload_complete = ?, is_stalled = ? WHERE id = ?',
-          true,
-
-          false,
-
-          segment.id
-        );
-
-        affectedDrives[`${segment.dongle_id}|${segment.drive_identifier}`] = true;
-      }
-      else if (Date.now() - segment.created > 10 * 24 * 3600 * 1000) { // ignore non-uploaded segments after 10 days until a new upload_url is requested (which resets is_stalled)
-        logger.info(`updateSegments isStalled for ${segment.dongle_id} ${segment.drive_identifier} ${segment.segment_id}`);
-
-        const driveSegmentResult = await dbProtectedRun(
-          'UPDATE drive_segments SET is_stalled = ? WHERE id = ?',
-          true,
-
-          segment.id
-        );
-      }
-
-      if (segmentProcessQueue.length >= 15) // we process at most 15 segments per batch
-      {
-        break;
-      }
-    }
-  }
-
-  if (segmentProcessQueue.length > 0) {
-    processSegmentsRecursive();
-  }
-  else // if no data is to be collected, call updateDrives to update those where eventually just the last segment completed the upload
-  {
-    updateDrives();
-  }
-}
 
 async function updateDevices() {
   // go through all affected devices (with deleted or updated drives) and update them (storage_used)
@@ -844,9 +593,11 @@ async function mainWorkerLoop() {
   }
 }
 
+
+
 // make sure bunzip2 is available
 try {
-  //execSync('bunzip2 --help');
+  execSync('bunzip2 --help');
 } catch (exception) {
   logger.error('bunzip2 is not installed or not available in environment path');
   process.exit();

@@ -26,20 +26,16 @@ import config from './config.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-process.on('unhandledRejection', (error, p) => {
-  console.log('=== UNHANDLED REJECTION ===');
-  console.log(error.promise, p);
-  console.dir(error.stack);
-});
+
 log4js.configure({
-  appenders: { logfile: { type: 'file', filename: 'server.log' }, out: { type: 'console' } /* {type: "file", filename: "server1.log"} */ },
-  categories: { default: { appenders: ['out', 'logfile'], level: 'info' } },
+  appenders: { logfile: { type: 'file', filename: 'worker.log' }, out: { type: 'console' } },
+  categories: { default: { appenders: ['out', 'logfile'], level: 'info' } }
 });
 
 const logger = log4js.getLogger('default');
+
+
 // TODO evaluate if this is the best way to determine the root of project
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 global.__basedir = __dirname;
@@ -55,10 +51,13 @@ const web = async () => {
   const app = express();
 
   app.use((req, res, next) => {
-    // TODO: can we use config.baseUrl here?
-    res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    // This is for use with React's dev server
+    if (config.development) {
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+      res.header('Access-Control-Allow-Credentials', true);
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    }
+    
     next();
   });
 
@@ -94,15 +93,10 @@ const web = async () => {
 
   app.use(routers.deviceApi);
 
-  app.use('/.well-known', express.static('.well-known'));
-
   app.use('/cabana', express.static('cabana/'));
 
   app.get('/', async (req, res) => {
-    res.status(200);
-    const response = '<html style="font-family: monospace"><h2>404 Not found</h2>'
-            + 'Are you looking for the <a href="/useradmin">useradmin dashboard</a>?';
-    res.send(response);
+    res.redirect('/useradmin')
   });
 
   app.get('*', runAsyncWrapper(async (req, res) => {
@@ -124,19 +118,12 @@ lockfile.lock('retropilot_server', { realpath: false, stale: 30000, update: 2000
   .then(async () => {
     console.log('STARTING SERVER...');
     const app = await web();
+    console.log("app made")
 
-    const key = fs.readFileSync(config.sslKey, 'utf8');
-    const cert = fs.readFileSync(config.sslCrt, 'utf8');
-
-    const httpServer = http.createServer(app);
-    const httpsServer = https.createServer({ key, cert }, app);
-
-    httpServer.listen(config.httpPort, config.httpInterface, () => {
+    http.createServer(app).listen(config.httpPort, config.httpInterface, () => {
       logger.info(`Retropilot Server listening at http://${config.httpInterface}:${config.httpPort}`);
     });
-    httpsServer.listen(config.httpsPort, config.httpsInterface, () => {
-      logger.info(`Retropilot Server listening at https://${config.httpsInterface}:${config.httpsPort}`);
-    });
+
   }).catch((e) => {
     console.error(e);
     process.exit();
