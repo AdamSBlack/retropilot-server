@@ -48,8 +48,6 @@ router.get('/authentication/oauth/:provider', async (req, res) => {
 });
 
 router.get('/authentication/oauth/pair/:provider', isAuthenticated, async (req, res) => {
-  
-
 
 });
 

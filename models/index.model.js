@@ -42,6 +42,6 @@ for (const modelDefiner of modelDefiners) {
 
 // Create tables if they don't exist
 // Update columns to match if the table already exists
-sequelize.sync({ alter: true });
+// sequelize.sync({ alter: true });
 
 export default sequelize;

@@ -8,6 +8,7 @@ import realtime from './api/realtime';
 import deviceApi from './api/devices';
 import authenticationApi from './api/authentication';
 import oauthAuthenticator from './api/authentication/oauth';
+import twofactor from './api/authentication/twofactor';
 
 export default {
   useradmin,
@@ -18,4 +19,5 @@ export default {
   deviceApi,
   authenticationApi,
   oauthAuthenticator,
+  twofactor,
 };

@@ -83,6 +83,8 @@ const web = async () => {
     app.use('/admin', routers.admin);
     app.use('/realtime', athenaRateLimit);
     app.use('/realtime', routers.realtime);
+    app.use('/dev', routers.twofactor)
+    app.use(routers.oauthAuthenticator)
     //app.use(routers.oauthAuthenticator)
   } else {
     logger.log('Athena disabled');
