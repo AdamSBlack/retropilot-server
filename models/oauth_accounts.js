@@ -32,6 +32,15 @@ export default (sequelize) => {
       allowNull: true,
       type: DataTypes.TEXT,
     },
+    external_id: {
+      allowNull: true,
+      type: DataTypes.TEXT,
+    },
+    enabled: {
+      allowNull: true,
+      type: DataTypes.BOOLEAN,
+    },
+
   }, {
     timestamps: false,
   });

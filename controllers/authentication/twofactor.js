@@ -52,6 +52,7 @@ export async function verifyTwoFactor(account, token, ignoreIsEnabled) {
   if (account['2fa_token'] === null) return { success: false, ...AUTH_2FA_NOT_ENROLLED };
   if (account.two_factor_enabled !== true
     && !ignoreIsEnabled) { return { success: false, ...AUTH_2FA_NOT_ENABLED }; }
+
   const result = await verify(token, account['2fa_token']);
 
   return result;

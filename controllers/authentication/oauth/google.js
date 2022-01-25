@@ -54,13 +54,13 @@ export async function getToken(code, scope) {
   return id;
 }
 
-export async function getURL() {
+export async function getURL(state) {
   const client = new AuthorizationCode(config);
 
   return client.authorizeURL({
     redirect_uri: 'http://localhost/authentication/oauth/callback',
     scope: 'https://www.googleapis.com/auth/userinfo.email',
-    state: 'ada',
+    state,
   });
 }
 
