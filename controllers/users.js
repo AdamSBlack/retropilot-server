@@ -11,7 +11,8 @@ export async function getAccountFromId(id) {
 export async function getAccountFromEmail(email) {
   if (!email) return null;
 
-  const account = orm.models.accounts.findOne({ where: { email } });
+  const account = await orm.models.accounts.findOne({ where: { email } });
+  console.log(account);
 
   if (account.dataValues) return account.dataValues;
   return null;

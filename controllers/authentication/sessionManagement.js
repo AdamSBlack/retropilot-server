@@ -11,7 +11,7 @@ import {
   AUTH_OAUTH_ERR_NO_ACCOUNT,
 } from '../../consistency/terms';
 import { getToken } from './oauth/google';
-import { getAccountFromId } from '../users';
+import { getAccountFromEmail, getAccountFromId } from '../users';
 
 const moduleScope = 'AUTH/SESSION';
 
@@ -133,6 +133,19 @@ export async function addTwoFactorToSession(jwt, twoFactorToken) {
   logger.info(moduleScope, 'Invalid JWT', jwt);
 }
 
+export async function verifyLocalPassword(username, password) {
+  const account = await getAccountFromEmail(username);
+  console.log('account', account, username);
+  if (account) {
+    const inputPassword = crypto.createHash('sha256').update(password + config.applicationSalt).digest('hex');
+    if (account.password === inputPassword) {
+      return { success: true, data: { account } };
+    }
+    return { success: true, badPasswordFillter: true };
+  }
+  return { success: false, noaccount: true };
+}
+
 // This function exists to create either a local session
 // or a oauth session, in order to add 2FA to a session
 // you must call addTwoFactorToSession later
@@ -159,6 +172,19 @@ export async function createSession(session) {
     }
 
     return { success: false, ...AUTH_OAUTH_ERR_NO_ACCOUNT };
+  } if (session.local) {
+    const localAccount = await verifyLocalPassword(session.local.username, session.local.password);
+    console.log(session, localAccount);
+
+    if (localAccount.success === true && localAccount.data) {
+      return {
+        success: true,
+        data: {
+          account: localAccount.data.account,
+          jwt: await JWTBuilder(localAccount.data.account, false),
+        },
+      };
+    }
   }
 
   return { success: false };

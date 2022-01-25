@@ -7,6 +7,7 @@ import admin from './administration/adminApi';
 import realtime from './api/realtime';
 import deviceApi from './api/devices';
 import authenticationApi from './api/authentication';
+import authentication from './api/authentication/index';
 import oauthAuthenticator from './api/authentication/oauth';
 import twofactor from './api/authentication/twofactor';
 
@@ -20,4 +21,5 @@ export default {
   authenticationApi,
   oauthAuthenticator,
   twofactor,
+  authentication,
 };
