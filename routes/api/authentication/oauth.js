@@ -6,7 +6,7 @@ import {
 
 const router = express.Router();
 
-router.get('/callback', async (req, res) => {
+router.get('/:provider/callback', async (req, res) => {
   const session = await createSession(
     { oauth: { code: req.query.code, scope: req.query.scope } },
     req.query.state,

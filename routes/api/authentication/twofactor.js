@@ -33,7 +33,7 @@ router.get('/enrol/:totp', MiddlewareSessionValidation, async (req, res) => {
 
 // Validate and generate new 2FA session for authentication
 
-router.get('/verify/:totp', MiddlewareSessionValidation, async (req, res) => {
+router.get('/verify/:totp', DANGEROUSMiddlewareSessionNo2FA, async (req, res) => {
   if (!req.account) return res.status(400).json({ success: false, ...AUTH_GENERIC_NOT_AUTHORISED });
   const session = await addTwoFactorToSession(
     req.cookies.sessionjwt,

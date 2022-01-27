@@ -26,7 +26,7 @@ async function pairDevice(account, qrString) {
     pairJWT = pairToken;
   } else {
     const data = await authenticationController.readJWT(qrString);
-    if (!data.pair) {
+    if (!data || !data.pair) {
       return { success: false, noPair: true };
     }
     deviceQuery = await orm.models.device.findOne({ where: { dongle_id: data.identity } });

@@ -42,6 +42,7 @@ export async function MiddlewareSessionValidation(req, res, next) {
 
   if (session.success === true) {
     if (session.data && session.data.authenticated === true) {
+      console.log(session.data, session.data.account);
       req.account = session.data.account;
       next();
       return { success: true, authenticated: true, account: session.data.account };
@@ -64,10 +65,11 @@ export async function ValidateSession(jwt, twoFactorRequired) {
     logger.error(moduleScope, 'Corrupt JWT', jwt);
     return { success: false, lacking: true };
   }
+  console.log(jwtVerified.twoFactorExpires, Date.now() > jwtVerified.twoFactorExpires);
 
   if (jwtVerified && jwtVerified.id) {
     if (twoFactorRequired === true
-      && (jwtVerified.twoFactorExpires > Date.now() || jwtVerified.twoFactorExpires === null)) {
+      && (Date.now() > jwtVerified.twoFactorExpires || jwtVerified.twoFactorExpires === null)) {
       return { success: false, twoFactor: false };
     }
 
@@ -92,7 +94,7 @@ export async function JWTBuilder(account, twoFactorVerified) {
   return jsonwebtoken.sign({
     id: account.id,
     // sessionId,
-    twoFactorExpires: twoFactorVerified ? Date.now() + 86400 : null,
+    twoFactorExpires: twoFactorVerified ? Date.now() + (86400 * 1000) : null,
   }, config.applicationSalt);
 }
 
@@ -131,6 +133,8 @@ export async function addTwoFactorToSession(jwt, twoFactorToken) {
     return { success: false, toDoAddBaddACcount: true };
   }
   logger.info(moduleScope, 'Invalid JWT', jwt);
+
+  return { success: false, badjwt: true };
 }
 
 export async function verifyLocalPassword(username, password) {

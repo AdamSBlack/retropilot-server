@@ -18,42 +18,27 @@ import athena from './websocket/athena/index.js';
 import routers from './routes/index.js';
 import orm from './models/index.model.js';
 import controllers from './controllers/index.js';
-import router from './routes/api/realtime.js';
-
-/* eslint-enable no-unused-vars */
 
 import config from './config.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-process.on('unhandledRejection', (error, p) => {
-  console.log('=== UNHANDLED REJECTION ===');
-  console.log(error.promise, p);
-  console.dir(error.stack);
-});
+
 log4js.configure({
   appenders: { logfile: { type: 'file', filename: 'server.log' }, out: { type: 'console' } /* {type: "file", filename: "server1.log"} */ },
   categories: { default: { appenders: ['out', 'logfile'], level: 'info' } },
 });
 
 const logger = log4js.getLogger('default');
-// TODO evaluate if this is the best way to determine the root of project
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 global.__basedir = __dirname;
 
-function runAsyncWrapper(callback) {
-  return function wrapper(req, res, next) {
-    callback(req, res, next)
-      .catch(next);
-  };
-}
+
 
 const web = async () => {
   const app = express();
-
   app.use((req, res, next) => {
     // TODO: can we use config.baseUrl here?
     res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
@@ -63,31 +48,14 @@ const web = async () => {
   });
 
   storageController.initializeStorage();
-  await storageController.updateTotalStorageUsed();
+  storageController.updateTotalStorageUsed();
 
   app.use(routers.api);
   app.use(routers.useradmin);
-  app.use(routers.authenticationApi);
 
-  if (config.athena.enabled) {
-    const athenaRateLimit = rateLimit({
-      windowMs: 30000,
-      max: config.athena.api.ratelimit,
-    });
+  app.use('/admin', routers.admin);
+  app.use('/v1/authentication', routers.authentication)
 
-    app.use((req, res, next) => {
-      req.athenaWebsocketTemp = athena;
-      return next();
-    });
-
-    app.use('/admin', routers.admin);
-    app.use('/realtime', athenaRateLimit);
-    app.use('/realtime', routers.realtime);
-    app.use('/v1/authentication', routers.authentication)
-    //app.use(routers.oauthAuthenticator)
-  } else {
-    logger.log('Athena disabled');
-  }
 
   app.use(cors({ origin: 'http://localhost:3000' }));
   app.use(cookieParser());
@@ -104,17 +72,17 @@ const web = async () => {
     res.redirect('/useradmin')
   });
 
-  app.get('*', runAsyncWrapper(async (req, res) => {
+  app.get('*', async (req, res) => {
     logger.error(`HTTP.GET unhandled request: ${controllers.helpers.simpleStringify(req)}, ${controllers.helpers.simpleStringify(res)}`);
     res.status(404);
     res.send('Not Implemented');
-  }));
+  });
 
-  app.post('*', runAsyncWrapper(async (req, res) => {
+  app.post('*', async (req, res) => {
     logger.error(`HTTP.POST unhandled request: ${controllers.helpers.simpleStringify(req)}, ${controllers.helpers.simpleStringify(res)}`);
     res.status(404);
     res.send('Not Implemented');
-  }));
+  });
 
   return app;
 };
@@ -123,8 +91,6 @@ lockfile.lock('retropilot_server', { realpath: false, stale: 30000, update: 2000
   .then(async () => {
     console.log('STARTING SERVER...');
     const app = await web();
-
-
 
     const httpServer = http.createServer(app);
 
